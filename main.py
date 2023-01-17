@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 import cv2 as cv
 from ctypes import windll, byref, c_ubyte
@@ -16,14 +18,31 @@ SRCCOPY = 0x00CC0020
 GetBitmapBits = windll.gdi32.GetBitmapBits
 DeleteObject = windll.gdi32.DeleteObject
 ReleaseDC = windll.user32.ReleaseDC
-
+AttachThreadInput = windll.user32.AttachThreadInput
+MapVirtualKeyA = windll.user32.MapVirtualKeyA
+current = win32api.GetCurrentThreadId()
 # 排除缩放干扰
 windll.user32.SetProcessDPIAware()
 
 def doClick(cx, cy,hwnd):
     long_position = win32api.MAKELONG(cx, cy)  # 模拟鼠标指针 传送到指定坐标
     win32api.SendMessage(hwnd, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, long_position)  # 模拟鼠标按下
+    time.sleep(0.1)
     win32api.SendMessage(hwnd, win32con.WM_LBUTTONUP, win32con.MK_LBUTTON, long_position)  # 模拟鼠标弹起
+def sendKey(hwnd, key):
+    """
+    后台发送按键
+    :param hwnd:窗口句柄
+    :param key:按键值
+    :return:
+    """
+    lparam = win32api.MAKELONG(0, MapVirtualKeyA(key, 0)) | 0x00000001
+    win32gui.SendMessage(hwnd, win32con.WM_ACTIVATE, win32con.WA_ACTIVE, 0)
+    AttachThreadInput(current, hwnd, True)
+    win32api.PostMessage(hwnd, win32con.WM_KEYDOWN, key, lparam)
+    time.sleep(0.1)
+    win32api.PostMessage(hwnd, win32con.WM_KEYUP, key, lparam | 0xC0000000)
+    time.sleep(0.1)
 
 
 def capture(handle: HWND):
@@ -56,7 +75,8 @@ def capture(handle: HWND):
     # 返回截图数据为numpy.ndarray
     return np.frombuffer(buffer, dtype=np.uint8).reshape(height, width, 4)
 if __name__ == "__main__":
-    handle = windll.user32.FindWindowW(None, "League of Legends")
+    handle = windll.user32.FindWindowW(None, "*11.txt - 记事本")
+
     img1 = capture(handle)
   #  cv.imshow("Capture Test", img1)
   #  cv.waitKey()
@@ -67,29 +87,24 @@ img2_gray=cv.cvtColor(img2, cv.COLOR_BGR2GRAY)
 h, w = img2.shape[:2]
 # 匹配
 result = cv.matchTemplate(img1_gray, img2_gray, cv.TM_CCOEFF_NORMED)
+
 min_val, max_val, min_loc, max_loc = cv.minMaxLoc(result)
-print(max_loc)
-print(min_loc)
-print(result)
-print(max_val)
-print(min_val)
+#print(max_loc)
+#print(min_loc)
+#print(result)
+#print(max_val)
+#print(min_val)
 # max_loc为左上角
 # 右下角
 right_bottom = (max_loc[0] + w, max_loc[1] + h)
 # 画矩形,红色的线框出来。
-cv.rectangle(img=img1, pt1=max_loc, pt2=right_bottom, color=(0, 0, 255), thickness=3)
+#cv.rectangle(img=img1, pt1=max_loc, pt2=right_bottom, color=(0, 0, 255), thickness=3)
 cv.imshow('result', img1)
 cv.waitKey()
 cv.destroyAllWindows()
-
-
-height, width = canny_img.shape
-crop_img = canny_img[300:int(height/2), 0:width]
 cv.namedWindow('img', cv.WINDOW_KEEPRATIO)
-cv.imshow("img", crop_img)
-if doClick(1100,528,handle):
-    print("yess")
-else: print("no")
+print(handle)
 
-
+doClick(821,522,handle)
+sendKey(handle,0x20)
 
